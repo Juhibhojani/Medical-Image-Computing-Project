@@ -76,9 +76,6 @@ def get_args_parser():
 
     return parser
 
-
-
-
 args,unknown = get_args_parser().parse_known_args()
 assert args.model in ['HDKD', 'student_model', 'teacher_model']
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -105,6 +102,7 @@ use_distillation=False
 if args.model=="HDKD":
     use_distillation=True
 
+print(f"checkpoint:{args.checkpoint}")
 test_criterion=nn.CrossEntropyLoss()
 for i in [0.2,0.4,0.5,0.6,0.7,0.8,0.9]:
     print("-"*100)

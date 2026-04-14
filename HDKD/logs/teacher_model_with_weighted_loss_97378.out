@@ -1,0 +1,28 @@
+Args parsed
+Training student without distillation (Full data but without smote)
+
+Validating the train path:/home/micml/25m0764/MIC_project/final_dataset/dataset_600/train
+Validating the train path:/home/micml/25m0764/MIC_project/final_dataset/dataset_600/test
+Train size: 2833
+Test size: 828
+Creating model: teacher_model
+Model created
+The teacher_model has number of params = 3948677
+Using weighted loss function for training
+Starting training
+Epoch [1/200], Training Loss: 1.8344, Training Accuracy: 31.87%, Validation Loss: 1.0463, Validation Accuracy: 57.61%
+----------- saving --------------
+Epoch [2/200], Training Loss: 1.5977, Training Accuracy: 36.43%, Validation Loss: 0.7869, Validation Accuracy: 74.28%
+----------- saving --------------
+Epoch [3/200], Training Loss: 1.5367, Training Accuracy: 40.06%, Validation Loss: 0.7167, Validation Accuracy: 77.29%
+----------- saving --------------
+Epoch [4/200], Training Loss: 1.4897, Training Accuracy: 39.18%, Validation Loss: 0.7065, Validation Accuracy: 75.85%
+Epoch [5/200], Training Loss: 1.4683, Training Accuracy: 41.30%, Validation Loss: 0.7579, Validation Accuracy: 75.24%
+Epoch [6/200], Training Loss: 1.4267, Training Accuracy: 41.48%, Validation Loss: 0.9354, Validation Accuracy: 71.98%
+Epoch [7/200], Training Loss: 1.4202, Training Accuracy: 42.39%, Validation Loss: 0.6374, Validation Accuracy: 78.14%
+----------- saving --------------
+Epoch [8/200], Training Loss: 1.3607, Training Accuracy: 45.11%, Validation Loss: 0.7903, Validation Accuracy: 74.03%
+Epoch [9/200], Training Loss: 1.3131, Training Accuracy: 48.01%, Validation Loss: 0.9599, Validation Accuracy: 71.38%
+Epoch [10/200], Training Loss: 1.3170, Training Accuracy: 45.89%, Validation Loss: 1.7443, Validation Accuracy: 35.99%
+Epoch [11/200], Training Loss: 1.3180, Training Accuracy: 47.37%, Validation Loss: 0.6477, Validation Accuracy: 75.48%
+Epoch [12/200], Training Loss: 1.2449, Training Accuracy: 50.34%, Validation Loss: 1.0445, Validation Accuracy: 68.60%

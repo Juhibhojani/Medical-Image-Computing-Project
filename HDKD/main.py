@@ -138,11 +138,22 @@ def get_args_parser():
 
     return parser
 
+def compute_class_weights(train_loader, num_classes):
+    counts = torch.zeros(num_classes)
+
+    for _, labels in train_loader:
+        for l in labels:
+            counts[l] += 1
+
+    total = counts.sum()
+    weights = total / (num_classes * counts)
+
+    return weights
 
 def main(args):
     PATIENCE=50
     patience_counter=0
-    print("Training HDKD - TAKE 1 (Full data but without smote)")
+    print("Training student without distillation (Full data but without smote)")
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     np.random.seed(args.seed)
@@ -198,9 +209,19 @@ def main(args):
         optimizer = create_optimizer(args,model)
         scheduler, _ = create_scheduler(args, optimizer)
 
+    criterion = {}
+    if args.model=="teacher_model":
+        print("Using weighted loss function for training")
+        # weighted loss function for teacher training
+        class_weights = compute_class_weights(train_loader, args.nb_classes)
+        class_weights = class_weights.to(device)
 
-    # defining loss criteria
-    criterion={'CE_loss':nn.CrossEntropyLoss()}
+        criterion_ce = torch.nn.CrossEntropyLoss(weight=class_weights)
+        criterion["CE_loss"]=criterion_ce
+    else:
+        # defining loss criteria
+        criterion['CE_loss'] = nn.CrossEntropyLoss()
+        
     if use_distillation:
         lkd_criterion = LogitDistillationLoss(nn.CrossEntropyLoss(),teacher_model,args.lkd_distillation_type,args.lkd_distillation_alpha,args.lkd_distillation_tau)
         fkd_criterion = FeatureDistillationLoss(teacher_model, model, args.fkd_distillation_alpha, args.teacher_layers, args.student_layers)
@@ -209,6 +230,8 @@ def main(args):
 
     best_val_accuracy=0
     print("Starting training")
+    
+    
     
     # val loader visualization
     # fixed_batch = next(iter(val_loader))
@@ -257,7 +280,7 @@ def main(args):
             best_val_accuracy = val_accuracy
             patience_counter=0
             print("----------- saving --------------")
-            torch.save(model.state_dict(), "best_model.pth")
+            torch.save(model.state_dict(), "teacher_model_weighted_loss.pth")
         else:
             patience_counter+=1
         if patience_counter>=PATIENCE:
