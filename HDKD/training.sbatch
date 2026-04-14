@@ -1,7 +1,7 @@
 #!/bin/bash 
 
-#SBATCH --job-name=training_hdkd_350     # Job name 
-#SBATCH --output=training_hdkd_350-%j.out    # Standard output and error log 
+#SBATCH --job-name=training_hdkd_full     # Job name 
+#SBATCH --output=training_hdkd_full-%j.out    # Standard output and error log 
 #SBATCH --qos=a40
 #SBATCH --partition=a40 
 #SBATCH --cpus-per-task=8 

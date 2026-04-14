@@ -142,7 +142,7 @@ def get_args_parser():
 def main(args):
     PATIENCE=50
     patience_counter=0
-    print("Training HDKD - TAKE 1 (100 images per class)")
+    print("Training HDKD - TAKE 1 (Full data but without smote)")
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     np.random.seed(args.seed)
@@ -211,17 +211,17 @@ def main(args):
     print("Starting training")
     
     # val loader visualization
-    fixed_batch = next(iter(val_loader))
-    fixed_inputs, _ = fixed_batch
-    fixed_inputs = fixed_inputs.to(device)
+    # fixed_batch = next(iter(val_loader))
+    # fixed_inputs, _ = fixed_batch
+    # fixed_inputs = fixed_inputs.to(device)
     
-    tracker = FeatureTracker(
-        teacher_model=teacher_model,   
-        student_model=model, 
-        device=device,
-        teacher_layers=[1,2,3],
-        student_layers=[1,2,3],
-    )
+    # tracker = FeatureTracker(
+    #     teacher_model=teacher_model,   
+    #     student_model=model, 
+    #     device=device,
+    #     teacher_layers=[1,2,3],
+    #     student_layers=[1,2,3],
+    # )
     for epoch in range(args.epochs):
 
         train_stats = train_one_epoch(
@@ -241,19 +241,19 @@ def main(args):
           f"Validation Loss: {test_stats['loss']:.4f}, Validation Accuracy: {test_stats['accuracy']:.2%}")
 
         viz_this_epoch =False
-        if use_distillation and epoch%25==0:
-            viz_this_epoch = True
-            print("Visualizing")
-            tracker.capture(fixed_inputs)
-            tracker.save_visualization(epoch)
-        model.train()
+        # if use_distillation and epoch%25==0:
+        #     viz_this_epoch = True
+        #     print("Visualizing")
+        #     tracker.capture(fixed_inputs)
+        #     tracker.save_visualization(epoch)
+        # model.train()
         
         val_accuracy = test_stats['accuracy']
         if val_accuracy > best_val_accuracy:
-            if not viz_this_epoch and use_distillation:
-                tracker.capture(fixed_inputs)
-                tracker.save_visualization(epoch)
-                model.train()
+            # if not viz_this_epoch and use_distillation:
+            #     tracker.capture(fixed_inputs)
+            #     tracker.save_visualization(epoch)
+            #     model.train()
             best_val_accuracy = val_accuracy
             patience_counter=0
             print("----------- saving --------------")
