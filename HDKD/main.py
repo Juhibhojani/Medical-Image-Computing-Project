@@ -151,9 +151,9 @@ def compute_class_weights(train_loader, num_classes):
     return weights
 
 def main(args):
-    PATIENCE=50
+    PATIENCE=200
     patience_counter=0
-    print("Training student without distillation (Full data but without smote)")
+    print("Training teacher model with transformer (Full data analysis)")
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     np.random.seed(args.seed)
@@ -210,7 +210,7 @@ def main(args):
         scheduler, _ = create_scheduler(args, optimizer)
 
     criterion = {}
-    if args.model=="teacher_model":
+    if args.model=="teacher_model" or args.model=="HDKD" or args.model=="student_model": 
         print("Using weighted loss function for training")
         # weighted loss function for teacher training
         class_weights = compute_class_weights(train_loader, args.nb_classes)
@@ -230,8 +230,6 @@ def main(args):
 
     best_val_accuracy=0
     print("Starting training")
-    
-    
     
     # val loader visualization
     # fixed_batch = next(iter(val_loader))
@@ -263,7 +261,7 @@ def main(args):
           f"Training Loss: {train_stats['loss']:.4f}, Training Accuracy: {train_stats['accuracy']:.2%}, "
           f"Validation Loss: {test_stats['loss']:.4f}, Validation Accuracy: {test_stats['accuracy']:.2%}")
 
-        viz_this_epoch =False
+        # viz_this_epoch =False
         # if use_distillation and epoch%25==0:
         #     viz_this_epoch = True
         #     print("Visualizing")
@@ -280,7 +278,7 @@ def main(args):
             best_val_accuracy = val_accuracy
             patience_counter=0
             print("----------- saving --------------")
-            torch.save(model.state_dict(), "teacher_model_weighted_loss.pth")
+            torch.save(model.state_dict(), "teacher_with_transformer.pth")
         else:
             patience_counter+=1
         if patience_counter>=PATIENCE:

@@ -69,8 +69,10 @@ class StudentModel(nn.Module):
 
 @register_model
 def student_model(**kwargs):
-    num_blocks = [2, 2, 3, 3]
+    # changing student model to have more layers, i.e. essentially training a teacher model with transformer to see what happens with full data setting
+    num_blocks = [6, 6, 9, 3]
     channels = [64, 96, 192,256]
+    print(f"Creating model with num_blocks:{num_blocks[0],num_blocks[1],num_blocks[2],num_blocks[3]}")
     return StudentModel((224, 224), 3, num_blocks, channels, patch_size=(2,2), use_distillation=False, **kwargs)
 
 @register_model
