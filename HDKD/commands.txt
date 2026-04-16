@@ -1,0 +1,3 @@
+python main.py --batch-size 32 --model HDKD  --epochs 200 --teacher-path /home/micml/25m0764/MIC_project/HDKD/weighted_loss_data_models/teacher_model/teacher_model_weighted_loss.pth --data-path /home/micml/25m0764/MIC_project/dataset_dbn/dataset_50
+
+python main_finetuning.py --batch-size 32 --model teacher_model  --epochs 200 --data-path /home/micml/25m0764/MIC_project/dataset_dbn/dataset_200

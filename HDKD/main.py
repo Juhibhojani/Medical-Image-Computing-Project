@@ -153,7 +153,7 @@ def compute_class_weights(train_loader, num_classes):
 def main(args):
     PATIENCE=200
     patience_counter=0
-    print("Training teacher model with transformer (Full data analysis)")
+    print("Training HDKD model with pre-trained teacher - 200 per class data")
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     np.random.seed(args.seed)
@@ -192,6 +192,7 @@ def main(args):
     use_distillation=False
     if args.model=="HDKD":
         # in case we are using their student model, we will need a teacher model loaded
+        print(f"Path for teacher model: {args.teacher_path}")
         use_distillation=True
         teacher_model = create_model(
         "teacher_model",
@@ -210,17 +211,13 @@ def main(args):
         scheduler, _ = create_scheduler(args, optimizer)
 
     criterion = {}
-    if args.model=="teacher_model" or args.model=="HDKD" or args.model=="student_model": 
-        print("Using weighted loss function for training")
-        # weighted loss function for teacher training
-        class_weights = compute_class_weights(train_loader, args.nb_classes)
-        class_weights = class_weights.to(device)
+    print("Using weighted loss function for training")
+    # weighted loss function for teacher training
+    class_weights = compute_class_weights(train_loader, args.nb_classes)
+    class_weights = class_weights.to(device)
 
-        criterion_ce = torch.nn.CrossEntropyLoss(weight=class_weights)
-        criterion["CE_loss"]=criterion_ce
-    else:
-        # defining loss criteria
-        criterion['CE_loss'] = nn.CrossEntropyLoss()
+    criterion_ce = torch.nn.CrossEntropyLoss(weight=class_weights)
+    criterion["CE_loss"]=criterion_ce
         
     if use_distillation:
         lkd_criterion = LogitDistillationLoss(nn.CrossEntropyLoss(),teacher_model,args.lkd_distillation_type,args.lkd_distillation_alpha,args.lkd_distillation_tau)
@@ -231,20 +228,7 @@ def main(args):
     best_val_accuracy=0
     print("Starting training")
     
-    # val loader visualization
-    # fixed_batch = next(iter(val_loader))
-    # fixed_inputs, _ = fixed_batch
-    # fixed_inputs = fixed_inputs.to(device)
-    
-    # tracker = FeatureTracker(
-    #     teacher_model=teacher_model,   
-    #     student_model=model, 
-    #     device=device,
-    #     teacher_layers=[1,2,3],
-    #     student_layers=[1,2,3],
-    # )
     for epoch in range(args.epochs):
-
         train_stats = train_one_epoch(
                     model, criterion, train_loader,
                     optimizer, device, epoch, use_distillation = use_distillation
@@ -261,24 +245,13 @@ def main(args):
           f"Training Loss: {train_stats['loss']:.4f}, Training Accuracy: {train_stats['accuracy']:.2%}, "
           f"Validation Loss: {test_stats['loss']:.4f}, Validation Accuracy: {test_stats['accuracy']:.2%}")
 
-        # viz_this_epoch =False
-        # if use_distillation and epoch%25==0:
-        #     viz_this_epoch = True
-        #     print("Visualizing")
-        #     tracker.capture(fixed_inputs)
-        #     tracker.save_visualization(epoch)
-        # model.train()
         
         val_accuracy = test_stats['accuracy']
         if val_accuracy > best_val_accuracy:
-            # if not viz_this_epoch and use_distillation:
-            #     tracker.capture(fixed_inputs)
-            #     tracker.save_visualization(epoch)
-            #     model.train()
             best_val_accuracy = val_accuracy
             patience_counter=0
             print("----------- saving --------------")
-            torch.save(model.state_dict(), "teacher_with_transformer.pth")
+            torch.save(model.state_dict(), "student_ood_200.pth")
         else:
             patience_counter+=1
         if patience_counter>=PATIENCE:

@@ -71,7 +71,7 @@ def limit_samples_per_class(df, max_per_class=300):
     return pd.concat(result).reset_index(drop=True),class_distribution
 
 # limiting only training samples
-train_df,class_distribution = limit_samples_per_class(train_df, max_per_class=50)
+train_df,class_distribution = limit_samples_per_class(train_df, max_per_class=200)
 
 # checking the train distribution
 print("Train distribution:\n", train_df['dx'].value_counts())
@@ -80,7 +80,7 @@ print("Test size:", len(test_df))
 
 # organizing based on format required
 source_dir = './ood_dataset'
-output_dir = './dataset_50'
+output_dir = './dataset_200'
 
 # Create folders
 for split in ['train', 'test']:

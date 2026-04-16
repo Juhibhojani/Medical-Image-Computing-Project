@@ -9,3 +9,10 @@ __pycache__/
 __pycache__/
 *.py[cod]
 *$py.class
+
+dataset_600
+reduced_dataset
+
+dataset_50
+dataset_100
+ood_dataset
