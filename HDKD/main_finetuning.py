@@ -153,7 +153,7 @@ def compute_class_weights(train_loader, num_classes):
 def main(args):
     PATIENCE=200
     patience_counter=0
-    print("Fine-tuning teacher model")
+    print("Fine-tuning teacher model with only FFN layer unfreezed!")
     print("Take 1 with 200 images!")
     print(f"{args.epochs} epochs reduced in order to fine-tune the model")
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -200,8 +200,8 @@ def main(args):
     print("All parameters freezed")
     
     # unfreezing last stage (last feature block)
-    for param in model.stage3.parameters():
-        param.requires_grad = True
+    # for param in model.stage3.parameters():
+    #     param.requires_grad = True
 
     # unfreeze feed forward network
     for param in model.fn1.parameters():
@@ -301,7 +301,7 @@ def main(args):
             best_val_accuracy = val_accuracy
             patience_counter=0
             print("----------- saving --------------")
-            torch.save(model.state_dict(), "fine_tuned_teacher_200.pth")
+            torch.save(model.state_dict(), "fine_tuned_teacher_config_2_200.pth")
         else:
             patience_counter+=1
         if patience_counter>=PATIENCE:
