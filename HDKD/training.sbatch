@@ -1,6 +1,6 @@
 #!/bin/bash 
-#SBATCH --job-name=fine_tuning_teacher_config2_200   # Job name 
-#SBATCH --output=fine_tuning_teacher_config2_200-%j.out    # Standard output and error log 
+#SBATCH --job-name=hdkd_combined_loss_700_beta=0.3   # Job name 
+#SBATCH --output=hdkd_combined_loss_700_beta=0.3-%j.out    # Standard output and error log 
 #SBATCH --qos=l40
 #SBATCH --partition=l40 
 #SBATCH --cpus-per-task=8 
@@ -9,4 +9,4 @@
 #SBATCH --gpus=1 
 #SBATCH --output=logs/%x_%j.out 
 #SBATCH --error=logs/%x_%j.err 
-python main_finetuning.py --batch-size 32 --model teacher_model  --epochs 200 --data-path /home/micml/25m0764/MIC_project/dataset_dbn/dataset_200
+python main.py --batch-size 32 --model HDKD  --epochs 200 --teacher-path /home/micml/25m0764/MIC_project/HDKD/weighted_loss_data_models/teacher_model/teacher_model_weighted_loss.pth --data-path /home/micml/25m0764/MIC_project/final_dataset/dataset_600

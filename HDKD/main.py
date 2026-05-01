@@ -17,7 +17,7 @@ from dataset import build_dataset
 from engine import train_one_epoch, evaluate
 from feature_visualizer import FeatureTracker
 from models import *
-from losses import LogitDistillationLoss, FeatureDistillationLoss, TotalDistillationLoss
+from losses import LogitDistillationLoss, FeatureDistillationLoss, TotalDistillationLoss, CombinedDistillationLoss
 
 
 def str_to_dict(string):
@@ -153,7 +153,7 @@ def compute_class_weights(train_loader, num_classes):
 def main(args):
     PATIENCE=200
     patience_counter=0
-    print("Training HDKD model with pre-trained teacher - 200 per class data")
+    print("Testing student distillation with combined forward and reverse KL. Dataset size: 700")
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     np.random.seed(args.seed)
@@ -220,7 +220,8 @@ def main(args):
     criterion["CE_loss"]=criterion_ce
         
     if use_distillation:
-        lkd_criterion = LogitDistillationLoss(nn.CrossEntropyLoss(),teacher_model,args.lkd_distillation_type,args.lkd_distillation_alpha,args.lkd_distillation_tau)
+        print("Using combination of forward and reverse KL, 0.3 weighting for reverse KL.")
+        lkd_criterion = CombinedDistillationLoss(nn.CrossEntropyLoss(),teacher_model,args.lkd_distillation_type,args.lkd_distillation_alpha,args.lkd_distillation_tau)
         fkd_criterion = FeatureDistillationLoss(teacher_model, model, args.fkd_distillation_alpha, args.teacher_layers, args.student_layers)
         total_distillation = TotalDistillationLoss(lkd_criterion,fkd_criterion,args._lambda)
         criterion['Total_distillation_loss'] = total_distillation
@@ -251,7 +252,7 @@ def main(args):
             best_val_accuracy = val_accuracy
             patience_counter=0
             print("----------- saving --------------")
-            torch.save(model.state_dict(), "student_ood_200.pth")
+            torch.save(model.state_dict(), "hdkd_combined_loss_700_take2.pth")
         else:
             patience_counter+=1
         if patience_counter>=PATIENCE:
