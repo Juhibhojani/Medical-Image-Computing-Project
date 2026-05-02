@@ -7,7 +7,7 @@ from smote import apply_smote
 def build_dataset(is_train,args):
     data_transforms = get_transform(is_train,args)
     # TODO : change here
-    folder = 'train_100' if is_train else 'test'
+    folder = 'train' if is_train else 'test'
     if is_train and args.use_smote:
         # building dataset with transforms
         augmented_dataset, n_classes = apply_smote(args,data_transforms)

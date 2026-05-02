@@ -185,6 +185,59 @@ class FeatureDistillationLoss(torch.nn.Module):
         return fkd_loss
 
 
+class TokenDistillationLoss(nn.Module):
+    """
+    Additional loss for D2/D3 tokens, let's make transformer learn everything
+    """
+    def __init__(self,teacher_model,teacher_layers=[2, 3],student_dim=256):
+        super().__init__()
+
+        self.teacher_model = teacher_model
+        self.teacher_layers = teacher_layers
+        self.pool = nn.AdaptiveAvgPool2d(1)
+
+        # projection layers - need to align features to patch size
+        self.proj_stage2 = None
+        self.proj_stage3 = None
+
+        self.student_dim = student_dim
+
+    def _build_proj(self, t2, t3):
+        """Initialize projection layers dynamically"""
+        if self.proj_stage2 is None:
+            self.proj_stage2 = nn.Linear(t2.shape[1], self.student_dim).to(t2.device)
+        if self.proj_stage3 is None:
+            self.proj_stage3 = nn.Linear(t3.shape[1], self.student_dim).to(t3.device)
+
+    def forward(self, inputs, d2_token, d3_token):
+
+        # getting features from teacher via an extra forward loss
+        with torch.no_grad():
+            teacher_layers = list(self.teacher_model.children())
+
+            t2 = nn.Sequential(*teacher_layers[:self.teacher_layers[0]])(inputs)
+            t3 = nn.Sequential(*teacher_layers[:self.teacher_layers[1]])(inputs)
+
+        # flattening the features
+        t2 = self.pool(t2).flatten(1)
+        t3 = self.pool(t3).flatten(1)
+
+        # project down
+        self._build_proj(t2, t3)
+        t2 = self.proj_stage2(t2)
+        t3 = self.proj_stage3(t3)
+
+        d2_token = F.normalize(d2_token, dim=-1)
+        d3_token = F.normalize(d3_token, dim=-1)
+        t2 = F.normalize(t2, dim=-1)
+        t3 = F.normalize(t3, dim=-1)
+
+        # loss via MSE.
+        loss_stage2 = F.mse_loss(d2_token, t2)
+        loss_stage3 = F.mse_loss(d3_token, t3)
+        return loss_stage2 + loss_stage3
+
+
 class TotalDistillationLoss(torch.nn.Module):
     """
     This module wraps the Total distillation loss which is a weighted combination of logit and 
@@ -203,3 +256,54 @@ class TotalDistillationLoss(torch.nn.Module):
         fkd_loss = self.FeatureDistillationLoss(inputs)
         return lkd_loss + self._lambda * fkd_loss
 
+class TotalDistillationLoss(nn.Module):
+    """
+    Combines:
+    - Logit distillation loss (KL / CE)
+    - Feature distillation loss (existing)
+    - Token distillation loss (new: D2, D3)
+    """
+
+    def __init__(self,LogitDistillationLoss: nn.Module,FeatureDistillationLoss: nn.Module,TokenDistillationLoss: nn.Module = None,lambda_feat=10,lambda_token=1.0):
+        super().__init__()
+
+        self.LogitDistillationLoss = LogitDistillationLoss
+        self.FeatureDistillationLoss = FeatureDistillationLoss
+        self.TokenDistillationLoss = TokenDistillationLoss
+
+        self.lambda_feat = lambda_feat
+        self.lambda_token = lambda_token
+
+    def forward(self, inputs, outputs, labels):
+        if isinstance(outputs, tuple):
+            if len(outputs) == 4:
+                # multi-distill case
+                cls_out, d2, d3, dlogit = outputs
+
+                # Repack for existing logit KD
+                kd_outputs = (cls_out, dlogit)
+                
+            elif len(outputs) == 2:
+                # original case
+                cls_out, dlogit = outputs
+                kd_outputs = outputs
+                d2, d3 = None, None
+            else:
+                raise ValueError("Unexpected output format")
+        else:
+            # no distillation
+            kd_outputs = outputs
+            d2, d3 = None, None
+
+        lkd_loss = self.LogitDistillationLoss(inputs, kd_outputs, labels)
+        # can be removed
+        fkd_loss = self.FeatureDistillationLoss(inputs)
+
+        total_loss = lkd_loss + self.lambda_feat * fkd_loss
+
+        # adding new loss
+        if self.TokenDistillationLoss is not None and d2 is not None:
+            token_loss = self.TokenDistillationLoss(inputs, d2, d3)
+            total_loss += self.lambda_token * token_loss
+
+        return total_loss

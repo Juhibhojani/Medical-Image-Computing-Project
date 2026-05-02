@@ -94,13 +94,14 @@ class DFLT(nn.Module):
         dropout (int): Dropout rate. Default 0
 
     """
-    def __init__(self, image_size, patch_size, dim, depth, heads, expansion, channels, use_distillation=True, dim_head = 32, dropout = 0., emb_dropout = 0.):
+    def __init__(self, image_size, patch_size, dim, depth, heads, expansion, channels, use_distillation=True, multi_distill=False,dim_head = 32, dropout = 0., emb_dropout = 0.):
         super().__init__()
         # this is now my ViT transformer
         # getting image size and patch size
         image_height, image_width = pair(image_size)
         patch_height, patch_width = pair(patch_size)
         self.use_distillation = use_distillation
+        self.multi_distill = multi_distill
         # how much to expand in MLP
         mlp_dim = dim * expansion
         assert image_height % patch_height == 0 and image_width % patch_width == 0, 'Image dimensions must be divisible by the patch size.'
@@ -120,17 +121,31 @@ class DFLT(nn.Module):
             # doing layer norm again
             nn.LayerNorm(dim),
         )
+        num_extra_tokens = 1  # CLS
+
         if self.use_distillation:
-            # in case of distillation we have 2 different special tokens cls + distillation token
-            self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 2, dim))
-        else:
-            self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 1, dim))
+            if self.multi_distill:
+                num_extra_tokens += 3
+            else:
+                num_extra_tokens += 1
+
+        self.pos_embedding = nn.Parameter(
+            torch.randn(1, num_patches + num_extra_tokens, dim)
+        )
+
 
         # same PE for entire batch
         self.cls_token = nn.Parameter(torch.randn(1, 1, dim))
+
         if self.use_distillation:
-            # using distillation token 
-            self.distill_token = nn.Parameter(torch.randn(1, 1, dim))
+            if self.multi_distill:
+                # Stage-wise + logit tokens
+                self.distill_stage2 = nn.Parameter(torch.randn(1, 1, dim))
+                self.distill_stage3 = nn.Parameter(torch.randn(1, 1, dim))
+                self.distill_logit = nn.Parameter(torch.randn(1, 1, dim))
+            else:
+                self.distill_token = nn.Parameter(torch.randn(1, 1, dim))
+
         self.pos_drop = nn.Dropout(emb_dropout)
 
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
@@ -146,8 +161,18 @@ class DFLT(nn.Module):
         # CLS token added to the input, same representation added before attention to everyone but after that it becomes mixed up
         cls_tokens = repeat(self.cls_token, '1 1 d -> b 1 d', b = b)
         if self.use_distillation:
-            distill_token = repeat(self.distill_token, '1 1 d -> b 1 d', b = b)
-            x = torch.cat((cls_tokens,distill_token, x), dim=1)
+            if self.multi_distill:
+                d2 = repeat(self.distill_stage2, '1 1 d -> b 1 d', b=b)
+                d3 = repeat(self.distill_stage3, '1 1 d -> b 1 d', b=b)
+                dlogit = repeat(self.distill_logit, '1 1 d -> b 1 d', b=b)
+
+                # Order: CLS, D2, D3, Dlogit, patches
+                x = torch.cat((cls_tokens, d2, d3, dlogit, x), dim=1)
+
+            else:
+                distill_token = repeat(self.distill_token, '1 1 d -> b 1 d', b=b)
+                x = torch.cat((cls_tokens, distill_token, x), dim=1)
+
 
         else:
             x = torch.cat((cls_tokens, x), dim=1)
@@ -159,6 +184,11 @@ class DFLT(nn.Module):
         x = self.to_latent(x)
         # with distillation we have 2 outputs, without we have single one for inference
         if self.use_distillation:
-            return x[:,0], x[:,1]
+
+            if self.multi_distill:
+                return x[:, 0], x[:, 1], x[:, 2], x[:, 3]
+            else:
+                return x[:, 0], x[:, 1]
+
         else:
-            return x[:,0]
+            return x[:, 0]

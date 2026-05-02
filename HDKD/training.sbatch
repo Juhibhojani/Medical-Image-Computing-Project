@@ -1,6 +1,6 @@
 #!/bin/bash 
-#SBATCH --job-name=hdkd_combined_loss_700_beta=0.3   # Job name 
-#SBATCH --output=hdkd_combined_loss_700_beta=0.3-%j.out    # Standard output and error log 
+#SBATCH --job-name=hdkd_multi_distill_full_no_feat   # Job name 
+#SBATCH --output=hdkd_multi_distill_full_no_feat-%j.out    # Standard output and error log 
 #SBATCH --qos=l40
 #SBATCH --partition=l40 
 #SBATCH --cpus-per-task=8 

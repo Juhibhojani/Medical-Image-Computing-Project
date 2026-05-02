@@ -9,7 +9,7 @@ val_accuracies = []
 
 def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module, data_loader: Iterable,
                     optimizer: torch.optim.Optimizer, device: torch.device, epoch: int,
-                    use_distillation: bool = True, _lambda = 10): 
+                    use_distillation: bool = True, multi_distill:bool = False, _lambda = 10): 
     model.train()
     train_loss = 0.0
     correct = 0
@@ -32,7 +32,10 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module, data_loa
         train_loss += loss.item()
 
         if use_distillation==True:
-            out_cls,out_distill = outputs
+            if multi_distill==True:
+                out_cls, d2, d3, out_distill = outputs
+            else:
+                out_cls,out_distill = outputs
             # simple averaging of outputs by 2 tokens
             # TODO: try some parameter learning for this or just change this averaging thing to more weightage 
             output = (out_cls + out_distill) / 2
@@ -54,7 +57,7 @@ def train_one_epoch(model: torch.nn.Module, criterion: torch.nn.Module, data_loa
 
 @torch.no_grad()
 def evaluate(model: torch.nn.Module, criterion: torch.nn.Module, data_loader: Iterable,
-            device: torch.device ,use_distillation: bool = True):
+            device: torch.device ,use_distillation: bool = True,multi_distill:bool=False):
     val_loss = 0.0
     correct = 0
     total = 0
@@ -63,8 +66,10 @@ def evaluate(model: torch.nn.Module, criterion: torch.nn.Module, data_loader: It
         inputs, labels = inputs.to(device), labels.to(device)
         outputs = None
         if use_distillation==True:
-            out_cls,out_distill = model(inputs)
-            # TODO : Tweak the weighting 
+            if multi_distill==True:
+                out_cls, d2, d3, out_distill =  model(inputs)
+            else:
+                out_cls,out_distill =  model(inputs)
             outputs = (out_cls + out_distill)/2
         else:
             outputs = model(inputs)

@@ -17,7 +17,7 @@ from dataset import build_dataset
 from engine import train_one_epoch, evaluate
 from feature_visualizer import FeatureTracker
 from models import *
-from losses import LogitDistillationLoss, FeatureDistillationLoss, TotalDistillationLoss, CombinedDistillationLoss
+from losses import LogitDistillationLoss, FeatureDistillationLoss, TotalDistillationLoss, CombinedDistillationLoss,TokenDistillationLoss
 
 
 def str_to_dict(string):
@@ -153,7 +153,7 @@ def compute_class_weights(train_loader, num_classes):
 def main(args):
     PATIENCE=200
     patience_counter=0
-    print("Testing student distillation with combined forward and reverse KL. Dataset size: 700")
+    print("Take 1: Modify the transformer to learn teacher's features. Weightage: 0.1, dataset: full size, no feature distillation")
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     np.random.seed(args.seed)
@@ -190,10 +190,12 @@ def main(args):
 
     teacher_model=None
     use_distillation=False
+    multi_distill=False
     if args.model=="HDKD":
         # in case we are using their student model, we will need a teacher model loaded
         print(f"Path for teacher model: {args.teacher_path}")
         use_distillation=True
+        multi_distill=True
         teacher_model = create_model(
         "teacher_model",
         num_classes=args.nb_classes,
@@ -219,11 +221,18 @@ def main(args):
     criterion_ce = torch.nn.CrossEntropyLoss(weight=class_weights)
     criterion["CE_loss"]=criterion_ce
         
+    lambda_token =0.5
+    lambda_feature =0 
+    print("In this run we will only let transformer learn in the final transformer block!")
     if use_distillation:
-        print("Using combination of forward and reverse KL, 0.3 weighting for reverse KL.")
-        lkd_criterion = CombinedDistillationLoss(nn.CrossEntropyLoss(),teacher_model,args.lkd_distillation_type,args.lkd_distillation_alpha,args.lkd_distillation_tau)
+        lkd_criterion = LogitDistillationLoss(nn.CrossEntropyLoss(),teacher_model,args.lkd_distillation_type,args.lkd_distillation_alpha,args.lkd_distillation_tau)
         fkd_criterion = FeatureDistillationLoss(teacher_model, model, args.fkd_distillation_alpha, args.teacher_layers, args.student_layers)
-        total_distillation = TotalDistillationLoss(lkd_criterion,fkd_criterion,args._lambda)
+        token_criterion = TokenDistillationLoss(teacher_model)
+
+        total_distillation = TotalDistillationLoss(lkd_criterion,fkd_criterion,TokenDistillationLoss=token_criterion,
+        lambda_feat=lambda_feature,
+        # TODO : can be anything!
+        lambda_token=lambda_token)
         criterion['Total_distillation_loss'] = total_distillation
 
     best_val_accuracy=0
@@ -232,7 +241,7 @@ def main(args):
     for epoch in range(args.epochs):
         train_stats = train_one_epoch(
                     model, criterion, train_loader,
-                    optimizer, device, epoch, use_distillation = use_distillation
+                    optimizer, device, epoch, use_distillation = use_distillation,multi_distill=multi_distill
                 )
 
         if scheduler is not None:
@@ -240,7 +249,7 @@ def main(args):
             print(scheduler.optimizer.param_groups[0]['lr'])
 
         val_criterion=nn.CrossEntropyLoss()
-        test_stats = evaluate(model, val_criterion, val_loader, device, use_distillation = use_distillation)
+        test_stats = evaluate(model, val_criterion, val_loader, device, use_distillation = use_distillation,multi_distill=multi_distill)
 
         print(f"Epoch [{epoch+1}/{args.epochs}], "  
           f"Training Loss: {train_stats['loss']:.4f}, Training Accuracy: {train_stats['accuracy']:.2%}, "
@@ -252,7 +261,7 @@ def main(args):
             best_val_accuracy = val_accuracy
             patience_counter=0
             print("----------- saving --------------")
-            torch.save(model.state_dict(), "hdkd_combined_loss_700_take2.pth")
+            torch.save(model.state_dict(), "hdkd_multi_distill_no_feat_full.pth")
         else:
             patience_counter+=1
         if patience_counter>=PATIENCE:
