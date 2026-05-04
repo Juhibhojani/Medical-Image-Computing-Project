@@ -153,7 +153,7 @@ def compute_class_weights(train_loader, num_classes):
 def main(args):
     PATIENCE=200
     patience_counter=0
-    print("Take 1: Modify the transformer to learn teacher's features. Weightage: 0.1, dataset: full size, no feature distillation")
+    print("Using SWIM architecture as bottleneck instead of standard ViT transformer without distillation!")
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     np.random.seed(args.seed)
@@ -195,7 +195,7 @@ def main(args):
         # in case we are using their student model, we will need a teacher model loaded
         print(f"Path for teacher model: {args.teacher_path}")
         use_distillation=True
-        multi_distill=True
+        multi_distill=False
         teacher_model = create_model(
         "teacher_model",
         num_classes=args.nb_classes,
@@ -220,19 +220,12 @@ def main(args):
 
     criterion_ce = torch.nn.CrossEntropyLoss(weight=class_weights)
     criterion["CE_loss"]=criterion_ce
-        
-    lambda_token =0.5
-    lambda_feature =0 
-    print("In this run we will only let transformer learn in the final transformer block!")
+
     if use_distillation:
         lkd_criterion = LogitDistillationLoss(nn.CrossEntropyLoss(),teacher_model,args.lkd_distillation_type,args.lkd_distillation_alpha,args.lkd_distillation_tau)
         fkd_criterion = FeatureDistillationLoss(teacher_model, model, args.fkd_distillation_alpha, args.teacher_layers, args.student_layers)
-        token_criterion = TokenDistillationLoss(teacher_model)
 
-        total_distillation = TotalDistillationLoss(lkd_criterion,fkd_criterion,TokenDistillationLoss=token_criterion,
-        lambda_feat=lambda_feature,
-        # TODO : can be anything!
-        lambda_token=lambda_token)
+        total_distillation = TotalDistillationLoss(lkd_criterion,fkd_criterion)
         criterion['Total_distillation_loss'] = total_distillation
 
     best_val_accuracy=0
@@ -261,7 +254,7 @@ def main(args):
             best_val_accuracy = val_accuracy
             patience_counter=0
             print("----------- saving --------------")
-            torch.save(model.state_dict(), "hdkd_multi_distill_no_feat_full.pth")
+            torch.save(model.state_dict(), "hdkd_swin_student_full.pth")
         else:
             patience_counter+=1
         if patience_counter>=PATIENCE:

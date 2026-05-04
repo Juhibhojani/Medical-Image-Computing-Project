@@ -1,5 +1,6 @@
 from blocks import *
 from DFLT_module import DFLT
+from DFLT_swim import DFLT_Swin
 from timm.models.registry import register_model
 
 class StudentModel(nn.Module):
@@ -19,7 +20,7 @@ class StudentModel(nn.Module):
         dropout (int): Dropout rate. Default 0
 
     """
-    def __init__(self, image_size, in_channel, num_blocks, channels,patch_size,num_classes=7,use_distillation=True, multi_distill=False,heads=8, expansion=4, dim_head = 32, dropout = 0., emb_dropout = 0., **kwargs):
+    def __init__(self, image_size, in_channel, num_blocks, channels,patch_size,num_classes=7,use_distillation=True, multi_distill=False, use_swim=False,heads=8, expansion=4, dim_head = 32, dropout = 0., emb_dropout = 0., **kwargs):
         super().__init__()
         # size of image taken
         ih,iw= image_size
@@ -34,7 +35,7 @@ class StudentModel(nn.Module):
         # downsampling at each stage, thats why this output
         feature_resolution = (ih//8 , iw//8)
 
-        self.DFLT_module = self._make_DFLT_module(feature_resolution,patch_size,channels[3],num_blocks[3],heads,expansion,channels[2],use_distillation,multi_distill,dim_head,dropout,emb_dropout)
+        self.DFLT_module = self._make_DFLT_module(feature_resolution,patch_size,channels[3],num_blocks[3],heads,expansion,channels[2],use_distillation,multi_distill,use_swim,dim_head,dropout,emb_dropout)
         # convert from cls token dim to number of classes via linear layer
         self.head_cls = nn.Linear(channels[3],num_classes)
         
@@ -69,7 +70,6 @@ class StudentModel(nn.Module):
 
                 cls_out = self.head_cls(cls_token)
                 distill_out = self.head_distill(distill_token)
-
                 return cls_out, distill_out
         else:
             x_cls = self.DFLT_module(x)
@@ -87,8 +87,12 @@ class StudentModel(nn.Module):
         return nn.Sequential(*layers)
 
 
-    def _make_DFLT_module(self,feature_resolution,patch_size,dim,depth,heads,expansion,channels,use_distillation,multi_distill,dim_head,dropout,emb_dropout):
-        return DFLT(feature_resolution,patch_size,dim,depth,heads,expansion,channels,use_distillation,multi_distill,dim_head,dropout,emb_dropout)
+    def _make_DFLT_module(self,feature_resolution,patch_size,dim,depth,heads,expansion,channels,use_distillation,multi_distill,use_swim,dim_head,dropout,emb_dropout):
+        if not use_swim:
+            return DFLT(feature_resolution,patch_size,dim,depth,heads,expansion,channels,use_distillation,multi_distill,dim_head,dropout,emb_dropout)
+        else:
+            print("Using SWIM architecture")
+            return DFLT_Swin(feature_resolution,patch_size,dim,depth,heads,expansion,channels,use_distillation,dim_head,7,dropout,emb_dropout,)
 
 
 @register_model
@@ -97,11 +101,11 @@ def student_model(**kwargs):
     num_blocks = [2, 2, 3, 3]
     channels = [64, 96, 192,256]
     # print(f"Creating model with num_blocks:{num_blocks[0],num_blocks[1],num_blocks[2],num_blocks[3]}")
-    return StudentModel((224, 224), 3, num_blocks, channels, patch_size=(2,2), use_distillation=False, **kwargs)
+    return StudentModel((224, 224), 3, num_blocks, channels, patch_size=(2,2), use_distillation=False, use_swim=True,**kwargs)
 
 @register_model
 def HDKD(**kwargs):
     num_blocks = [2, 2, 3, 3]
     channels = [64, 96, 192,256]
-    print(f"It's multiple distill tokens setup!")
-    return StudentModel((224, 224), 3, num_blocks, channels, patch_size=(2,2), use_distillation=True,multi_distill=True, **kwargs)
+    # print(f"It's multiple distill tokens setup!")
+    return StudentModel((224, 224), 3, num_blocks, channels, patch_size=(2,2), use_distillation=True,multi_distill=False,use_swim=True, **kwargs)
